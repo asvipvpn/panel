@@ -41,7 +41,7 @@ echo '{
   "obfs": "noondev",
   "auth": {
     "mode": "passwords",
-    "config": ["digitelsystem", "firenetdev"]
+    "config": ["noondevsystem", "firenetdev"]
   }
 }
 ' >> /etc/hysteria/config.json
