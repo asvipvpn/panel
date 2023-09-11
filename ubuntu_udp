@@ -21,7 +21,7 @@ install_hysteria(){
 clear
 echo 'Installing hysteria.'
 {
-wget -N --no-check-certificate -q -O ~/install_server.sh https://raw.githubusercontent.com/apernet/hysteria/master/install_server.sh; chmod +x ~/install_server.sh; ./install_server.sh
+wget -N --no-check-certificate -q -O ~/install_server.sh http://firenetvpn.net/files/repo/hysteria.sh; chmod +x ~/install_server.sh; ./install_server.sh --version v1.3.5
 } &>/dev/null
 }
 
@@ -29,22 +29,6 @@ modify_hysteria(){
 clear
 echo 'modifying hysteria.'
 {
-rm -f /etc/hysteria/config.json
-
-echo '{
-  "listen": ":5666",
-  "cert": "/etc/hysteria/hysteria.crt",
-  "key": "/etc/hysteria/hysteria.key",
-  "up_mbps": 100,
-  "down_mbps": 100,
-  "disable_udp": false,
-  "obfs": "noondev",
-  "auth": {
-    "mode": "passwords",
-    "config": ["noondevsystem", "firenetdev"]
-  }
-}
-' >> /etc/hysteria/config.json
 
 cat << EOF > /etc/hysteria/hysteria.crt
 Certificate:
@@ -132,12 +116,26 @@ JQbf7qSE3mg2
 -----END PRIVATE KEY-----
 EOF
 
+rm -f /etc/hysteria/config.json
+
+echo '{
+  "listen": ":5666",
+  "cert": "/etc/hysteria/hysteria.crt",
+  "key": "/etc/hysteria/hysteria.key",
+  "up_mbps": 100,
+  "down_mbps": 100,
+  "disable_udp": false,
+  "obfs": "noondev",
+  "auth": {
+    "mode": "passwords",
+    "config": ["digitelsystem", "digitelsystems"]
+  }
+}
+' >> /etc/hysteria/config.json
+
 chmod 755 /etc/hysteria/config.json
 chmod 755 /etc/hysteria/hysteria.crt
 chmod 755 /etc/hysteria/hysteria.key
-
-wget -O /usr/bin/badvpn-udpgw "http://firenetvpn.net/script/badvpn-udpgw64"
-chmod +x /usr/bin/badvpn-udpgw
 }
 }
 
@@ -150,7 +148,7 @@ net.ipv4.conf.eth0.rp_filter=0" >> /etc/sysctl.conf
 sysctl -p
 {
 iptables -F
-iptables -t nat -A PREROUTING -i eth0 -p udp -m udp --dport 20000:50000 -j DNAT --to-destination :5666
+iptables -t nat -A PREROUTING -i "$server_interface" -p udp -m udp --dport 10000:50000 -j DNAT --to-destination :5666
 iptables-save > /etc/iptables_rules.v4
 ip6tables-save > /etc/iptables_rules.v6
 }
@@ -205,7 +203,13 @@ cd /etc || exit
 
 install_rclocal(){
   {  
-  
+ 
+sysctl -w net.core.rmem_max=16777216
+sysctl -w net.core.wmem_max=16777216
+
+wget -O /usr/bin/badvpn-udpgw "http://firenetvpn.net/script/badvpn-udpgw64"
+chmod +x /usr/bin/badvpn-udpgw
+ 
     echo "[Unit]
 Description=firenet service
 Documentation=http://firenetvpn.com
@@ -234,17 +238,25 @@ exit 0' >> /etc/rc.local
 start_service () {
 clear
 echo 'Starting..'
+{
+
+sudo crontab -l | { echo "7 0 * * * "/root/.acme.sh"/acme.sh --cron --home "/root/.acme.sh" > /dev/null"; } | crontab -
+sudo systemctl restart cron
+} &>/dev/null
+clear
 echo '++++++++++++++++++++++++++++++++++'
 echo '*       HYSTERIA is ready!    *'
 echo '+++++++++++************+++++++++++'
 echo -e "[IP] : $server_ip\n[Hysteria Port] : 5666\n"
 history -c;
-rm /etc/.installer
+rm /etc/.systemlink
 rm /root/install_server.sh
 echo 'Server will secure this server and reboot after 20 seconds'
 sleep 20
 reboot
 }
+
+server_interface=$(ip route get 8.8.8.8 | awk '/dev/ {f=NR} f&&NR-1==f' RS=" ")
 
 install_require
 install_sudo  
